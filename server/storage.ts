@@ -480,23 +480,58 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createExperience(insertExperience: InsertExperience): Promise<Experience> {
-    // Ensure endDate is properly typed (can be null but not undefined)
+    // Ensure we're working with properly formatted date strings for PostgreSQL
+    const startDateStr = typeof insertExperience.startDate === 'object' && insertExperience.startDate instanceof Date
+      ? (insertExperience.startDate as Date).toISOString().split('T')[0] // Format as YYYY-MM-DD
+      : insertExperience.startDate;
+    
+    let endDateStr = null;
+    if (insertExperience.endDate) {
+      endDateStr = typeof insertExperience.endDate === 'object' && insertExperience.endDate instanceof Date
+        ? (insertExperience.endDate as Date).toISOString().split('T')[0] // Format as YYYY-MM-DD
+        : insertExperience.endDate;
+    }
+    
+    console.log("Formatted dates for database:", { startDateStr, endDateStr });
+    
+    // Create the experience with formatted date strings
     const experienceData = {
-      ...insertExperience,
-      endDate: insertExperience.endDate ?? null
+      startDate: startDateStr,
+      endDate: endDateStr,
+      customFields: insertExperience.customFields
     };
     
     const [experience] = await db.insert(experiences).values(experienceData).returning();
+    console.log("Created experience:", experience);
     return { ...experience, tags: [] };
   }
   
   async updateExperience(id: number, experienceData: Partial<InsertExperience>): Promise<Experience | undefined> {
-    // Ensure endDate is properly typed for update operation
-    const updateData = {
-      ...experienceData,
-      endDate: experienceData.endDate ?? undefined
-    };
+    // Create a new update object with properly formatted dates
+    const updateData: Record<string, any> = {};
     
+    // Add custom fields if present
+    if (experienceData.customFields) {
+      updateData.customFields = experienceData.customFields;
+    }
+    
+    // Format startDate if provided
+    if (experienceData.startDate) {
+      updateData.startDate = typeof experienceData.startDate === 'object' && experienceData.startDate instanceof Date
+        ? (experienceData.startDate as Date).toISOString().split('T')[0] // Format as YYYY-MM-DD
+        : experienceData.startDate;
+    }
+    
+    // Format endDate if provided or set to null if explicitly null
+    if (experienceData.endDate !== undefined) {
+      updateData.endDate = typeof experienceData.endDate === 'object' && experienceData.endDate instanceof Date
+        ? (experienceData.endDate as Date).toISOString().split('T')[0] // Format as YYYY-MM-DD
+        : experienceData.endDate || null;
+    }
+    
+    console.log("Updating experience with formatted data:", updateData);
+    
+    // Update the experience
     const [updatedExperience] = await db.update(experiences)
       .set(updateData)
       .where(eq(experiences.id, id))
@@ -505,6 +540,8 @@ export class DatabaseStorage implements IStorage {
     if (!updatedExperience) {
       return undefined;
     }
+    
+    console.log("Updated experience:", updatedExperience);
     
     // Get tags for this experience
     const tags = await this.getExperienceTags(id);
