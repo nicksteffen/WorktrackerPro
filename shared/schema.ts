@@ -1,5 +1,6 @@
-import { pgTable, text, serial, integer, boolean, date, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, date, jsonb, uniqueIndex, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
 // User schema from the original file
@@ -26,6 +27,10 @@ export const columns = pgTable("columns", {
   order: integer("order").notNull(),
 });
 
+export const columnsRelations = relations(columns, ({ many }) => ({
+  experiences: many(experiences),
+}));
+
 export const insertColumnSchema = createInsertSchema(columns).omit({
   id: true,
 });
@@ -38,6 +43,10 @@ export const experiences = pgTable("experiences", {
   customFields: jsonb("custom_fields").notNull(), // Stores the values for custom columns
 });
 
+export const experiencesRelations = relations(experiences, ({ many }) => ({
+  experienceTags: many(experienceTags),
+}));
+
 export const insertExperienceSchema = createInsertSchema(experiences).omit({
   id: true,
 });
@@ -48,6 +57,10 @@ export const tags = pgTable("tags", {
   name: text("name").notNull().unique(),
 });
 
+export const tagsRelations = relations(tags, ({ many }) => ({
+  experienceTags: many(experienceTags),
+}));
+
 export const insertTagSchema = createInsertSchema(tags).omit({
   id: true,
 });
@@ -55,9 +68,22 @@ export const insertTagSchema = createInsertSchema(tags).omit({
 // Experience-Tags relation
 export const experienceTags = pgTable("experience_tags", {
   id: serial("id").primaryKey(),
-  experienceId: integer("experience_id").notNull(),
-  tagId: integer("tag_id").notNull(),
-});
+  experienceId: integer("experience_id").notNull().references(() => experiences.id, { onDelete: 'cascade' }),
+  tagId: integer("tag_id").notNull().references(() => tags.id, { onDelete: 'cascade' }),
+}, (t) => ({
+  experienceTagUnique: uniqueIndex("experience_tag_unique_idx").on(t.experienceId, t.tagId),
+}));
+
+export const experienceTagsRelations = relations(experienceTags, ({ one }) => ({
+  experience: one(experiences, {
+    fields: [experienceTags.experienceId],
+    references: [experiences.id],
+  }),
+  tag: one(tags, {
+    fields: [experienceTags.tagId],
+    references: [tags.id],
+  }),
+}));
 
 export const insertExperienceTagSchema = createInsertSchema(experienceTags).omit({
   id: true,

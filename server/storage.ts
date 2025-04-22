@@ -1,10 +1,12 @@
 import { 
-  User, InsertUser, 
-  Column, InsertColumn, 
-  Experience, InsertExperience, 
-  Tag, InsertTag,
-  ExperienceTag, InsertExperienceTag
+  users, type User, type InsertUser,
+  columns, type Column, type InsertColumn,
+  experiences, type Experience, type InsertExperience,
+  tags, type Tag, type InsertTag,
+  experienceTags, type ExperienceTag, type InsertExperienceTag
 } from "@shared/schema";
+import { db } from "./db";
+import { and, asc, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User methods (from original file)
@@ -330,4 +332,325 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// DatabaseStorage implementation using PostgreSQL
+export class DatabaseStorage implements IStorage {
+  constructor() {
+    this.initializeDefaultColumns();
+  }
+
+  // Initialize default columns if none exist yet
+  private async initializeDefaultColumns() {
+    const existingColumns = await this.getColumns();
+    
+    if (existingColumns.length === 0) {
+      const defaultColumns = [
+        {
+          name: "Start Date",
+          key: "startDate",
+          type: "date",
+          isVisible: true,
+          order: 1,
+        },
+        {
+          name: "End Date",
+          key: "endDate",
+          type: "date",
+          isVisible: true,
+          order: 2,
+        },
+        {
+          name: "Client",
+          key: "client",
+          type: "short-text",
+          isVisible: true,
+          order: 3,
+        },
+        {
+          name: "Project",
+          key: "project",
+          type: "short-text",
+          isVisible: true,
+          order: 4,
+        },
+        {
+          name: "Skills",
+          key: "skills",
+          type: "dropdown",
+          dropdownOptions: ["React", "TypeScript", "Next.js", "MongoDB", "Python"],
+          allowMultiple: true,
+          isVisible: true,
+          order: 5,
+        },
+        {
+          name: "Notes",
+          key: "notes",
+          type: "long-text",
+          isVisible: true,
+          order: 6,
+        }
+      ];
+      
+      for (const column of defaultColumns) {
+        await this.createColumn(column as InsertColumn);
+      }
+    }
+  }
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  
+  // Column methods
+  async getColumns(): Promise<Column[]> {
+    return db.select().from(columns).orderBy(asc(columns.order));
+  }
+  
+  async getColumn(id: number): Promise<Column | undefined> {
+    const [column] = await db.select().from(columns).where(eq(columns.id, id));
+    return column || undefined;
+  }
+  
+  async getColumnByKey(key: string): Promise<Column | undefined> {
+    const [column] = await db.select().from(columns).where(eq(columns.key, key));
+    return column || undefined;
+  }
+  
+  async createColumn(insertColumn: InsertColumn): Promise<Column> {
+    // Ensure dropdownOptions is properly typed
+    const columnData: typeof insertColumn = {
+      ...insertColumn,
+      dropdownOptions: insertColumn.dropdownOptions || null,
+      allowMultiple: insertColumn.allowMultiple || null,
+      isVisible: insertColumn.isVisible !== undefined ? insertColumn.isVisible : true
+    };
+    
+    const [column] = await db.insert(columns).values(columnData).returning();
+    return column;
+  }
+  
+  async updateColumn(id: number, columnData: Partial<InsertColumn>): Promise<Column | undefined> {
+    const [updatedColumn] = await db.update(columns)
+      .set(columnData)
+      .where(eq(columns.id, id))
+      .returning();
+    return updatedColumn || undefined;
+  }
+  
+  async deleteColumn(id: number): Promise<boolean> {
+    const result = await db.delete(columns).where(eq(columns.id, id)).returning({ id: columns.id });
+    return result.length > 0;
+  }
+  
+  // Experience methods
+  async getExperiences(): Promise<Experience[]> {
+    const experiencesList = await db.select().from(experiences);
+    
+    // For each experience, fetch tags
+    const result: Experience[] = [];
+    for (const exp of experiencesList) {
+      const tags = await this.getExperienceTags(exp.id);
+      result.push({ ...exp, tags });
+    }
+    
+    return result;
+  }
+  
+  async getExperience(id: number): Promise<Experience | undefined> {
+    const [experience] = await db.select().from(experiences).where(eq(experiences.id, id));
+    
+    if (!experience) {
+      return undefined;
+    }
+    
+    // Get tags for this experience
+    const tags = await this.getExperienceTags(id);
+    return { ...experience, tags };
+  }
+  
+  async createExperience(insertExperience: InsertExperience): Promise<Experience> {
+    // Ensure endDate is properly typed (can be null but not undefined)
+    const experienceData = {
+      ...insertExperience,
+      endDate: insertExperience.endDate ?? null
+    };
+    
+    const [experience] = await db.insert(experiences).values(experienceData).returning();
+    return { ...experience, tags: [] };
+  }
+  
+  async updateExperience(id: number, experienceData: Partial<InsertExperience>): Promise<Experience | undefined> {
+    // Ensure endDate is properly typed for update operation
+    const updateData = {
+      ...experienceData,
+      endDate: experienceData.endDate ?? undefined
+    };
+    
+    const [updatedExperience] = await db.update(experiences)
+      .set(updateData)
+      .where(eq(experiences.id, id))
+      .returning();
+    
+    if (!updatedExperience) {
+      return undefined;
+    }
+    
+    // Get tags for this experience
+    const tags = await this.getExperienceTags(id);
+    return { ...updatedExperience, tags };
+  }
+  
+  async deleteExperience(id: number): Promise<boolean> {
+    // This will cascade delete related experience_tags entries due to our FK constraint
+    const result = await db.delete(experiences).where(eq(experiences.id, id)).returning({ id: experiences.id });
+    return result.length > 0;
+  }
+  
+  // Tag methods
+  async getTags(): Promise<Tag[]> {
+    return db.select().from(tags);
+  }
+  
+  async getTag(id: number): Promise<Tag | undefined> {
+    const [tag] = await db.select().from(tags).where(eq(tags.id, id));
+    return tag || undefined;
+  }
+  
+  async getTagByName(name: string): Promise<Tag | undefined> {
+    const [tag] = await db.select().from(tags).where(eq(tags.name, name));
+    return tag || undefined;
+  }
+  
+  async createTag(insertTag: InsertTag): Promise<Tag> {
+    // Check if the tag already exists
+    const existingTag = await this.getTagByName(insertTag.name);
+    if (existingTag) {
+      return existingTag;
+    }
+    
+    const [tag] = await db.insert(tags).values(insertTag).returning();
+    return tag;
+  }
+  
+  async deleteTag(id: number): Promise<boolean> {
+    const result = await db.delete(tags).where(eq(tags.id, id)).returning({ id: tags.id });
+    return result.length > 0;
+  }
+  
+  // Experience-Tag methods
+  async getExperienceTags(experienceId: number): Promise<Tag[]> {
+    const tagLinks = await db.select({
+      tag: tags
+    })
+    .from(experienceTags)
+    .innerJoin(tags, eq(experienceTags.tagId, tags.id))
+    .where(eq(experienceTags.experienceId, experienceId));
+    
+    return tagLinks.map(link => link.tag);
+  }
+  
+  async addTagToExperience(experienceId: number, tagId: number): Promise<ExperienceTag> {
+    // Check if the association already exists
+    const [existing] = await db.select()
+      .from(experienceTags)
+      .where(and(
+        eq(experienceTags.experienceId, experienceId),
+        eq(experienceTags.tagId, tagId)
+      ));
+    
+    if (existing) {
+      return existing;
+    }
+    
+    const [experienceTag] = await db.insert(experienceTags)
+      .values({ experienceId, tagId })
+      .returning();
+    
+    return experienceTag;
+  }
+  
+  async removeTagFromExperience(experienceId: number, tagId: number): Promise<boolean> {
+    const result = await db.delete(experienceTags)
+      .where(and(
+        eq(experienceTags.experienceId, experienceId),
+        eq(experienceTags.tagId, tagId)
+      ))
+      .returning();
+    
+    return result.length > 0;
+  }
+  
+  // Search methods
+  async searchExperiences(params: { 
+    startDate?: Date; 
+    endDate?: Date; 
+    tagIds?: number[];
+    searchTerm?: string;
+  }): Promise<Experience[]> {
+    // We'll do this in two steps to avoid the type issues:
+    // 1. First, get all experiences
+    const allExperiences = await this.getExperiences();
+    
+    // 2. Then, filter them in memory, which is simpler and avoids type issues with Drizzle
+    let filteredExperiences = allExperiences;
+    
+    // Filter by start date
+    if (params.startDate) {
+      const startDate = new Date(params.startDate);
+      filteredExperiences = filteredExperiences.filter(exp => 
+        new Date(exp.startDate) >= startDate
+      );
+    }
+    
+    // Filter by end date
+    if (params.endDate) {
+      const endDate = new Date(params.endDate);
+      filteredExperiences = filteredExperiences.filter(exp => 
+        !exp.endDate || new Date(exp.endDate) <= endDate
+      );
+    }
+    
+    // Filter by tags
+    if (params.tagIds && params.tagIds.length > 0) {
+      filteredExperiences = filteredExperiences.filter(exp => 
+        exp.tags?.some(tag => params.tagIds!.includes(tag.id))
+      );
+    }
+    
+    // Filter by search term
+    if (params.searchTerm) {
+      const searchTerm = params.searchTerm.toLowerCase();
+      filteredExperiences = filteredExperiences.filter(exp => {
+        // Search in custom fields
+        const customFieldsMatch = Object.entries(exp.customFields || {}).some(([_, value]) =>
+          value !== null &&
+          value !== undefined &&
+          String(value).toLowerCase().includes(searchTerm)
+        );
+        
+        // Search in tags
+        const tagsMatch = exp.tags?.some(tag =>
+          tag.name.toLowerCase().includes(searchTerm)
+        );
+        
+        return customFieldsMatch || tagsMatch;
+      });
+    }
+    
+    return filteredExperiences;
+  }
+}
+
+// Use the PostgreSQL storage implementation
+export const storage = new DatabaseStorage();
