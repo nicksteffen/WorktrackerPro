@@ -80,12 +80,20 @@ export default function ColumnForm({ column, onSubmit, onCancel }: ColumnFormPro
   // Parse dropdown options from textarea
   const handleDropdownOptionsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const optionsText = e.target.value;
+    
+    // Store the raw text value directly
+    const textareaValue = optionsText;
+    
+    // Parse into array for the form value
     const options = optionsText
       .split("\n")
       .map(option => option.trim())
       .filter(Boolean);
     
     form.setValue("dropdownOptions", options);
+    
+    // Force re-render with the correct text content
+    e.target.value = textareaValue;
   };
   
   const handleSubmit = (data: any) => {
@@ -176,6 +184,31 @@ export default function ColumnForm({ column, onSubmit, onCancel }: ColumnFormPro
                       onChange={handleDropdownOptionsChange}
                       placeholder="Enter options, one per line"
                       rows={4}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          // Prevent form submission when pressing Enter in the textarea
+                          e.stopPropagation();
+                          
+                          // Get the current value and cursor position
+                          const textarea = e.currentTarget;
+                          const cursorPosition = textarea.selectionStart;
+                          const value = textarea.value;
+                          
+                          // Insert a newline at the cursor position
+                          const newValue = value.substring(0, cursorPosition) + "\n" + value.substring(cursorPosition);
+                          
+                          // Update the value and cursor position
+                          textarea.value = newValue;
+                          textarea.selectionStart = textarea.selectionEnd = cursorPosition + 1;
+                          
+                          // Manually trigger the onChange handler
+                          const changeEvent = new Event('input', { bubbles: true });
+                          textarea.dispatchEvent(changeEvent);
+                          
+                          // Prevent the default Enter key behavior
+                          e.preventDefault();
+                        }
+                      }}
                     />
                   </FormControl>
                   <FormDescription>

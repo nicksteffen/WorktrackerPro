@@ -14,23 +14,19 @@ export default function Navbar() {
               <span className="ml-2 text-xl font-bold text-gray-900">WorkXP</span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link href="/">
-                <a className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+              <Link href="/" className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   location === "/" 
                     ? "border-primary text-gray-900" 
                     : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
                 }`}>
                   Experiences
-                </a>
               </Link>
-              <Link href="/columns">
-                <a className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+              <Link href="/columns" className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
                   location === "/columns" 
                     ? "border-primary text-gray-900" 
                     : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
                 }`}>
                   Column Configuration
-                </a>
               </Link>
             </div>
           </div>
