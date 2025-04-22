@@ -92,7 +92,7 @@ export default function ColumnConfig() {
                   <div className="flex items-center h-5 mt-1">
                     <Checkbox
                       id={`column-${column.id}`}
-                      checked={column.isVisible}
+                      checked={column.isVisible ? true : false}
                       onCheckedChange={() => toggleColumnVisibility(column)}
                       disabled={isPending}
                     />
@@ -146,7 +146,7 @@ export default function ColumnConfig() {
       
       {/* Column Form Dialog */}
       <Dialog open={isColumnModalOpen} onOpenChange={setIsColumnModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{currentColumn ? "Edit Column" : "Add New Column"}</DialogTitle>
           </DialogHeader>

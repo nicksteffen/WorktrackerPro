@@ -67,7 +67,7 @@ export default function ExperienceTable({
     const term = searchTerm.toLowerCase();
     
     // Search in custom fields
-    const customFieldsMatch = Object.values(exp.customFields).some(value => 
+    const customFieldsMatch = Object.entries(exp.customFields || {}).some(([_, value]) => 
       value && typeof value === 'string' && value.toLowerCase().includes(term)
     );
     
@@ -124,7 +124,9 @@ export default function ExperienceTable({
       ? experience.startDate 
       : column.key === 'endDate' 
         ? experience.endDate 
-        : experience.customFields[column.key];
+        : experience.customFields && typeof experience.customFields === 'object'
+          ? (experience.customFields as Record<string, any>)[column.key]
+          : undefined;
     
     if (column.key === 'startDate' || column.key === 'endDate') {
       return formatDate(value as string | Date | null | undefined);
@@ -284,7 +286,7 @@ export default function ExperienceTable({
                   <PaginationItem>
                     <PaginationPrevious 
                       onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page === 1}
+                      className={page === 1 ? "pointer-events-none opacity-50" : ""}
                     />
                   </PaginationItem>
                   
@@ -317,7 +319,7 @@ export default function ExperienceTable({
                   <PaginationItem>
                     <PaginationNext 
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page === totalPages}
+                      className={page === totalPages ? "pointer-events-none opacity-50" : ""}
                     />
                   </PaginationItem>
                 </PaginationContent>
@@ -329,7 +331,7 @@ export default function ExperienceTable({
       
       {/* Experience Form Dialog */}
       <Dialog open={isExperienceModalOpen} onOpenChange={setIsExperienceModalOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{currentExperience ? "Edit Experience" : "Add New Experience"}</DialogTitle>
           </DialogHeader>
