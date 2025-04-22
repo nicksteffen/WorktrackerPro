@@ -115,12 +115,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/experiences", async (req: Request, res: Response) => {
     try {
+      console.log("Received experience data:", req.body);
       const experienceData = experienceSchema.parse(req.body);
       
-      // Create the experience
+      console.log("Parsed experience data:", {
+        startDate: experienceData.startDate,
+        endDate: experienceData.endDate,
+        customFields: experienceData.customFields
+      });
+      
+      // Create the experience with dates converted by zod
       const experience = await storage.createExperience({
         startDate: experienceData.startDate,
-        endDate: experienceData.endDate || null,
+        endDate: experienceData.endDate,
         customFields: experienceData.customFields,
       });
       
@@ -143,9 +150,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/experiences/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
+      console.log("Received update experience data:", req.body);
       const experienceData = experienceSchema.partial().parse(req.body);
       
-      // Update the experience
+      console.log("Parsed update experience data:", {
+        startDate: experienceData.startDate,
+        endDate: experienceData.endDate,
+        customFields: experienceData.customFields
+      });
+      
+      // Update the experience with dates converted by zod
       const experience = await storage.updateExperience(id, {
         startDate: experienceData.startDate,
         endDate: experienceData.endDate,

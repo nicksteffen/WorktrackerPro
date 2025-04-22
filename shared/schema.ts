@@ -110,8 +110,23 @@ export type InsertExperienceTag = z.infer<typeof insertExperienceTagSchema>;
 // Extend the experience schema for the client
 export const experienceSchema = z.object({
   id: z.number().optional(),
-  startDate: z.date(),
-  endDate: z.date().optional().nullable(),
+  startDate: z.union([z.string(), z.date()]).transform((val) => {
+    // Convert string dates to Date objects
+    if (typeof val === 'string') {
+      return new Date(val);
+    }
+    return val;
+  }),
+  endDate: z.union([z.string(), z.date(), z.null()]).optional().transform((val) => {
+    // Convert string dates to Date objects or null
+    if (val === null || val === undefined) {
+      return null;
+    }
+    if (typeof val === 'string') {
+      return val ? new Date(val) : null;
+    }
+    return val;
+  }),
   customFields: z.record(z.any()),
   tags: z.array(z.number()).optional(),
 });
