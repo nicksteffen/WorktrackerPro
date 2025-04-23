@@ -21,7 +21,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/register', async (req, res) => {
     try {
       const { username, password } = req.body;
-      
+
       if (!username || !password) {
         return res.status(400).json({ message: 'Username and password are required' });
       }
@@ -77,9 +77,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   };
 
   // Column routes
-  app.get("/api/columns", async (req: Request, res: Response) => {
+  app.get("/api/columns", requireAuth, async (req: Request, res: Response) => {
     try {
-      const columns = await storage.getColumns();
+      const userId = (req.user as any).id;
+      const columns = await storage.getColumns(userId);
       res.json(columns);
     } catch (err) {
       console.error("Error fetching columns:", err);
@@ -87,9 +88,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/columns", async (req: Request, res: Response) => {
+  app.post("/api/columns", requireAuth, async (req: Request, res: Response) => {
     try {
-      const columnData = columnFormSchema.parse(req.body);
+      const userId = (req.user as any).id;
+      const columnData = columnFormSchema.parse({...req.body, userId});
       const column = await storage.createColumn(columnData);
       res.status(201).json(column);
     } catch (err) {
@@ -98,16 +100,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/columns/:id", async (req: Request, res: Response) => {
+  app.patch("/api/columns/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const columnData = columnFormSchema.partial().parse(req.body);
       const column = await storage.updateColumn(id, columnData);
-      
+
       if (!column) {
         return res.status(404).json({ message: "Column not found" });
       }
-      
+
       res.json(column);
     } catch (err) {
       console.error("Error updating column:", err);
@@ -115,40 +117,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/columns/import", async (req: Request, res: Response) => {
-  try {
-    const columns = req.body;
-    if (!Array.isArray(columns)) {
-      return res.status(400).json({ message: "Invalid column configuration" });
-    }
-    
-    // Delete existing columns
-    const existingColumns = await storage.getColumns();
-    for (const column of existingColumns) {
-      await storage.deleteColumn(column.id);
-    }
-    
-    // Import new columns
-    for (const column of columns) {
-      await storage.createColumn(column);
-    }
-    
-    res.status(200).json({ message: "Column configuration imported successfully" });
-  } catch (err) {
-    console.error("Error importing columns:", err);
-    res.status(500).json({ message: "Failed to import column configuration" });
-  }
-});
+  app.post("/api/columns/import", requireAuth, async (req: Request, res: Response) => {
+    try {
+      const userId = (req.user as any).id;
+      const columns = req.body;
+      if (!Array.isArray(columns)) {
+        return res.status(400).json({ message: "Invalid column configuration" });
+      }
 
-app.delete("/api/columns/:id", async (req: Request, res: Response) => {
+      // Delete existing columns
+      const existingColumns = await storage.getColumns(userId);
+      for (const column of existingColumns) {
+        await storage.deleteColumn(column.id);
+      }
+
+      // Import new columns
+      for (const column of columns) {
+        await storage.createColumn({...column, userId});
+      }
+
+      res.status(200).json({ message: "Column configuration imported successfully" });
+    } catch (err) {
+      console.error("Error importing columns:", err);
+      res.status(500).json({ message: "Failed to import column configuration" });
+    }
+  });
+
+  app.delete("/api/columns/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteColumn(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Column not found" });
       }
-      
+
       res.status(204).end();
     } catch (err) {
       console.error("Error deleting column:", err);
@@ -157,52 +160,32 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
   });
 
   // Experience routes
-  app.get("/api/experiences", async (req: Request, res: Response) => {
+  app.get("/api/experiences", requireAuth, async (req: Request, res: Response) => {
     try {
-      // For simple queries, we'll continue to use URL parameters
-      const { startDate, endDate, tagIds, searchTerm } = req.query;
-      
-      // If there are search parameters, use search method
-      if (startDate || endDate || tagIds || searchTerm) {
-        const experiences = await storage.searchExperiences({
-          startDate: startDate ? new Date(startDate as string) : undefined,
-          endDate: endDate ? new Date(endDate as string) : undefined,
-          tagIds: tagIds ? (typeof tagIds === 'string' ? [parseInt(tagIds)] : (tagIds as string[]).map(id => parseInt(id))) : undefined,
-          searchTerm: searchTerm as string | undefined,
-        });
-        return res.json(experiences);
-      }
-      
-      // Otherwise, return all experiences
-      const experiences = await storage.getExperiences();
+      const userId = (req.user as any).id;
+      const experiences = await storage.getExperiences(userId);
       res.json(experiences);
     } catch (err) {
       console.error("Error fetching experiences:", err);
       res.status(500).json({ message: "Failed to fetch experiences" });
     }
   });
-  
+
   // Dedicated search endpoint that accepts a POST request for more complex filtering
-  app.post("/api/experiences/search", async (req: Request, res: Response) => {
+  app.post("/api/experiences/search", requireAuth, async (req: Request, res: Response) => {
     try {
+      const userId = (req.user as any).id;
       const { startDate, endDate, tagIds, searchTerm, dropdownFilters } = req.body;
-      
-      console.log("Searching with filters:", { 
-        startDate, 
-        endDate, 
-        tagIds, 
-        searchTerm,
-        dropdownFilters 
-      });
-      
+
       const experiences = await storage.searchExperiences({
+        userId,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
         tagIds,
         searchTerm,
         dropdownFilters
       });
-      
+
       res.json(experiences);
     } catch (err) {
       console.error("Error searching experiences:", err);
@@ -210,15 +193,16 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     }
   });
 
-  app.get("/api/experiences/:id", async (req: Request, res: Response) => {
+  app.get("/api/experiences/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const userId = (req.user as any).id;
       const id = parseInt(req.params.id);
-      const experience = await storage.getExperience(id);
-      
+      const experience = await storage.getExperience(id, userId);
+
       if (!experience) {
         return res.status(404).json({ message: "Experience not found" });
       }
-      
+
       res.json(experience);
     } catch (err) {
       console.error("Error fetching experience:", err);
@@ -226,33 +210,21 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     }
   });
 
-  app.post("/api/experiences", async (req: Request, res: Response) => {
+  app.post("/api/experiences", requireAuth, async (req: Request, res: Response) => {
     try {
-      console.log("Received experience data:", req.body);
-      const experienceData = experienceSchema.parse(req.body);
-      
-      console.log("Parsed experience data:", {
-        startDate: experienceData.startDate,
-        endDate: experienceData.endDate,
-        customFields: experienceData.customFields
-      });
-      
-      // Create the experience with dates converted by zod
-      const experience = await storage.createExperience({
-        startDate: experienceData.startDate,
-        endDate: experienceData.endDate,
-        customFields: experienceData.customFields,
-      });
-      
+      const userId = (req.user as any).id;
+      const experienceData = experienceSchema.parse({...req.body, userId});
+      const experience = await storage.createExperience(experienceData);
+
       // Add tags if provided
       if (experienceData.tags && experienceData.tags.length > 0) {
         for (const tagId of experienceData.tags) {
           await storage.addTagToExperience(experience.id, tagId);
         }
       }
-      
+
       // Fetch the experience with tags
-      const completeExperience = await storage.getExperience(experience.id);
+      const completeExperience = await storage.getExperience(experience.id, userId);
       res.status(201).json(completeExperience);
     } catch (err) {
       console.error("Error creating experience:", err);
@@ -260,50 +232,39 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     }
   });
 
-  app.patch("/api/experiences/:id", async (req: Request, res: Response) => {
+  app.patch("/api/experiences/:id", requireAuth, async (req: Request, res: Response) => {
     try {
+      const userId = (req.user as any).id;
       const id = parseInt(req.params.id);
-      console.log("Received update experience data:", req.body);
       const experienceData = experienceSchema.partial().parse(req.body);
-      
-      console.log("Parsed update experience data:", {
-        startDate: experienceData.startDate,
-        endDate: experienceData.endDate,
-        customFields: experienceData.customFields
-      });
-      
-      // Update the experience with dates converted by zod
-      const experience = await storage.updateExperience(id, {
-        startDate: experienceData.startDate,
-        endDate: experienceData.endDate,
-        customFields: experienceData.customFields,
-      });
-      
+
+      const experience = await storage.updateExperience(id, experienceData);
+
       if (!experience) {
         return res.status(404).json({ message: "Experience not found" });
       }
-      
+
       // Update tags if provided
       if (experienceData.tags) {
         // Get current tags
         const currentTags = await storage.getExperienceTags(id);
         const currentTagIds = currentTags.map(tag => tag.id);
-        
+
         // Tags to add
         const tagsToAdd = experienceData.tags.filter(tagId => !currentTagIds.includes(tagId));
         for (const tagId of tagsToAdd) {
           await storage.addTagToExperience(id, tagId);
         }
-        
+
         // Tags to remove
         const tagsToRemove = currentTagIds.filter(tagId => !experienceData.tags!.includes(tagId));
         for (const tagId of tagsToRemove) {
           await storage.removeTagFromExperience(id, tagId);
         }
       }
-      
+
       // Fetch the updated experience with tags
-      const updatedExperience = await storage.getExperience(id);
+      const updatedExperience = await storage.getExperience(id, userId);
       res.json(updatedExperience);
     } catch (err) {
       console.error("Error updating experience:", err);
@@ -311,15 +272,15 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     }
   });
 
-  app.delete("/api/experiences/:id", async (req: Request, res: Response) => {
+  app.delete("/api/experiences/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteExperience(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Experience not found" });
       }
-      
+
       res.status(204).end();
     } catch (err) {
       console.error("Error deleting experience:", err);
@@ -328,7 +289,7 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
   });
 
   // Tag routes
-  app.get("/api/tags", async (req: Request, res: Response) => {
+  app.get("/api/tags", requireAuth, async (req: Request, res: Response) => {
     try {
       const tags = await storage.getTags();
       res.json(tags);
@@ -338,7 +299,7 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     }
   });
 
-  app.post("/api/tags", async (req: Request, res: Response) => {
+  app.post("/api/tags", requireAuth, async (req: Request, res: Response) => {
     try {
       const tagData = insertTagSchema.parse(req.body);
       const tag = await storage.createTag(tagData);
@@ -349,15 +310,15 @@ app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     }
   });
 
-  app.delete("/api/tags/:id", async (req: Request, res: Response) => {
+  app.delete("/api/tags/:id", requireAuth, async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteTag(id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Tag not found" });
       }
-      
+
       res.status(204).end();
     } catch (err) {
       console.error("Error deleting tag:", err);

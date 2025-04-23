@@ -18,8 +18,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
 // Column configuration schema
 export const columns = pgTable("columns", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
-  key: text("key").notNull().unique(),
+  key: text("key").notNull(),
   type: text("type").notNull(), // date, short-text, long-text, dropdown
   dropdownOptions: text("dropdown_options").array(), // For dropdown type, stores the available options
   allowMultiple: boolean("allow_multiple").default(false), // For dropdown type, allows multiple selections
@@ -38,6 +39,7 @@ export const insertColumnSchema = createInsertSchema(columns).omit({
 // Work Experience schema
 export const experiences = pgTable("experiences", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   startDate: date("start_date").notNull(),
   endDate: date("end_date"),
   customFields: jsonb("custom_fields").notNull(), // Stores the values for custom columns
