@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
+import Register from "@/pages/register";
 import Navbar from "@/components/navbar";
 import ColumnConfig from "@/pages/column-config";
 

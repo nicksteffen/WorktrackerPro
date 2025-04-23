@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
@@ -25,9 +24,9 @@ export function AuthButton() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
-      
+
       if (!res.ok) throw new Error('Login failed')
-      
+
       setIsLoginModalOpen(false)
       toast({
         title: "Success",
