@@ -99,21 +99,12 @@ export function useExperiences() {
     endDate?: string;
     tagIds?: number[];
     searchTerm?: string;
+    dropdownFilters?: Record<string, string[]>;
   }) => {
-    // Build query params
-    const params = new URLSearchParams();
-    if (filters.startDate) params.append('startDate', filters.startDate);
-    if (filters.endDate) params.append('endDate', filters.endDate);
-    if (filters.tagIds && filters.tagIds.length > 0) {
-      filters.tagIds.forEach(tagId => params.append('tagIds', tagId.toString()));
-    }
-    if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
-
-    const query = params.toString();
-    const url = `/api/experiences${query ? `?${query}` : ''}`;
-    
     try {
-      const res = await fetch(url, { credentials: 'include' });
+      // For dropdown filters and complex filtering, use POST request with the filter params in the body
+      const res = await apiRequest('POST', '/api/experiences/search', filters);
+      
       if (!res.ok) {
         throw new Error('Failed to filter experiences');
       }

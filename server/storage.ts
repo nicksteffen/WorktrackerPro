@@ -634,6 +634,7 @@ export class DatabaseStorage implements IStorage {
     endDate?: Date; 
     tagIds?: number[];
     searchTerm?: string;
+    dropdownFilters?: Record<string, string[]>;
   }): Promise<Experience[]> {
     // We'll do this in two steps to avoid the type issues:
     // 1. First, get all experiences
@@ -663,6 +664,29 @@ export class DatabaseStorage implements IStorage {
       filteredExperiences = filteredExperiences.filter(exp => 
         exp.tags?.some(tag => params.tagIds!.includes(tag.id))
       );
+    }
+    
+    // Filter by dropdown values
+    if (params.dropdownFilters && Object.keys(params.dropdownFilters).length > 0) {
+      filteredExperiences = filteredExperiences.filter(exp => {
+        // Check if experience matches all applied dropdown filters
+        return Object.entries(params.dropdownFilters!).every(([columnKey, selectedValues]) => {
+          if (!selectedValues || selectedValues.length === 0) return true;
+          
+          const fieldValue = exp.customFields[columnKey];
+          
+          // If field value is an array (multi-select dropdown)
+          if (Array.isArray(fieldValue)) {
+            return fieldValue.some(value => selectedValues.includes(value));
+          } 
+          // If field value is a string (single-select dropdown)
+          else if (typeof fieldValue === 'string') {
+            return selectedValues.includes(fieldValue);
+          }
+          
+          return false;
+        });
+      });
     }
     
     // Filter by search term
