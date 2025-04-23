@@ -7,26 +7,34 @@ import type { Request, Response, NextFunction } from 'express';
 
 const SessionStore = MemoryStore(session);
 
-// This would come from a database in production
-const USERS = [{
-  id: 1,
-  username: 'admin',
-  password: 'admin' // In production, use hashed passwords
-}];
+import { pool } from './db';
 
-passport.use(new LocalStrategy((username, password, done) => {
-  const user = USERS.find(u => u.username === username && u.password === password);
-  if (!user) return done(null, false);
-  return done(null, user);
+passport.use(new LocalStrategy(async (username, password, done) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE username = $1 AND password = $2',
+      [username, password]
+    );
+    const user = result.rows[0];
+    if (!user) return done(null, false);
+    return done(null, user);
+  } catch (err) {
+    return done(err);
+  }
 }));
 
 passport.serializeUser((user: any, done) => {
   done(null, user.id);
 });
 
-passport.deserializeUser((id: number, done) => {
-  const user = USERS.find(u => u.id === id);
-  done(null, user);
+passport.deserializeUser(async (id: number, done) => {
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    const user = result.rows[0];
+    done(null, user);
+  } catch (err) {
+    done(err);
+  }
 });
 
 export const sessionMiddleware = session({

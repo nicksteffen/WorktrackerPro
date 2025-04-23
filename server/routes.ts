@@ -16,6 +16,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(passport.session());
 
   // Auth routes
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      const result = await pool.query(
+        'INSERT INTO users (username, password) VALUES ($1, $2) RETURNING *',
+        [username, password]
+      );
+      req.login(result.rows[0], (err) => {
+        if (err) {
+          return res.status(500).json({ message: 'Error logging in after registration' });
+        }
+        res.status(200).json(result.rows[0]);
+      });
+    } catch (err) {
+      res.status(400).json({ message: 'Registration failed' });
+    }
+  });
+
   app.post('/api/auth/login', passport.authenticate('local'), (req, res) => {
     res.json(req.user);
   });
