@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { auth, requireAuth } from './auth';
+import passport from 'passport';
+import { requireAuth, sessionMiddleware } from './auth';
 import { storage } from "./storage";
 import { experienceSchema, columnFormSchema, insertTagSchema } from "@shared/schema";
 import { ZodError } from "zod";
@@ -9,32 +10,25 @@ import { fromZodError } from "zod-validation-error";
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
 
+  // Auth middleware
+  app.use(sessionMiddleware);
+  app.use(passport.initialize());
+  app.use(passport.session());
+
   // Auth routes
-  app.get('/api/auth/session', async (req, res) => {
-    const session = await auth.getSession(req)
-    res.json(session || null)
-  })
+  app.post('/api/auth/login', passport.authenticate('local'), (req, res) => {
+    res.json(req.user);
+  });
 
-  app.get('/api/auth/signin/:provider', async (req, res) => {
-    const { provider } = req.params
-    const url = await auth.signIn(provider)
-    res.json({ url })
-  })
+  app.post('/api/auth/logout', (req, res) => {
+    req.logout(() => {
+      res.status(200).json({ message: 'Logged out successfully' });
+    });
+  });
 
-  app.get('/api/auth/signout', async (req, res) => {
-    const url = await auth.signOut()
-    res.json({ url })
-  })
-
-  app.get('/api/auth/callback/:provider', async (req, res) => {
-    try {
-      const session = await auth.callback(req)
-      res.json(session)
-    } catch (error) {
-      console.error('Auth callback error:', error)
-      res.status(500).json({ error: 'Authentication failed' })
-    }
-  })
+  app.get('/api/auth/session', (req, res) => {
+    res.json(req.user || null);
+  });
 
   // Error handler for Zod validation errors
   const handleValidationError = (err: unknown, res: Response) => {

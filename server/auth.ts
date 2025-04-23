@@ -1,33 +1,47 @@
 
-import { Auth } from "@auth/core"
-import Google from "@auth/core/providers/google"
-import { OAuth2Client } from 'google-auth-library'
-import { Request, Response, NextFunction } from 'express'
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+import session from 'express-session';
+import MemoryStore from 'memorystore';
+import type { Request, Response, NextFunction } from 'express';
 
-if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-  throw new Error('Missing Google OAuth credentials')
-}
+const SessionStore = MemoryStore(session);
 
-export const auth = new Auth({
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    })
-  ],
-  secret: process.env.AUTH_SECRET || 'your-secret-key',
-})
+// This would come from a database in production
+const USERS = [{
+  id: 1,
+  username: 'admin',
+  password: 'admin' // In production, use hashed passwords
+}];
 
-export const oauth2Client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:5000/api/auth/callback/google'
-)
+passport.use(new LocalStrategy((username, password, done) => {
+  const user = USERS.find(u => u.username === username && u.password === password);
+  if (!user) return done(null, false);
+  return done(null, user);
+}));
+
+passport.serializeUser((user: any, done) => {
+  done(null, user.id);
+});
+
+passport.deserializeUser((id: number, done) => {
+  const user = USERS.find(u => u.id === id);
+  done(null, user);
+});
+
+export const sessionMiddleware = session({
+  store: new SessionStore({
+    checkPeriod: 86400000 // 24 hours
+  }),
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+});
 
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const session = req.headers.authorization?.split(' ')[1]
-  if (!session) {
-    return res.status(401).json({ message: 'Unauthorized' })
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
-  next()
+  next();
 }
