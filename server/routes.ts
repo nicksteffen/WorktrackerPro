@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import passport from 'passport';
 import { requireAuth, sessionMiddleware } from './auth';
+import { pool } from "./db";
 import { storage } from "./storage";
 import { experienceSchema, columnFormSchema, insertTagSchema } from "@shared/schema";
 import { ZodError } from "zod";
