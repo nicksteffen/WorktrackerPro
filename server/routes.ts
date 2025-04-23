@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import passport from 'passport';
+import bcrypt from 'bcryptjs';
 import { requireAuth, sessionMiddleware } from './auth';
 import { pool } from "./db";
 import { storage } from "./storage";
