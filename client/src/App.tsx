@@ -11,13 +11,33 @@ import Landing from "@/pages/landing";
 import Navbar from "@/components/navbar";
 import ColumnConfig from "@/pages/column-config";
 
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const [, setLocation] = useLocation();
+  
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(user => {
+        if (!user) {
+          setLocation('/login');
+        }
+      });
+  }, [setLocation]);
+
+  return <Component />;
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login}/>
       <Route path="/register" component={Register}/>
-      <Route path="/dashboard" component={Home}/>
-      <Route path="/columns" component={ColumnConfig}/>
+      <Route path="/dashboard">
+        <ProtectedRoute component={Home} />
+      </Route>
+      <Route path="/columns">
+        <ProtectedRoute component={ColumnConfig} />
+      </Route>
       <Route path="/" component={Landing}/>
       <Route component={NotFound} />
     </Switch>
