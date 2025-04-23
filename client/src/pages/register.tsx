@@ -26,7 +26,7 @@ export default function Register() {
       
       if (!res.ok) throw new Error('Registration failed');
       
-      setLocation('/login');
+      setLocation('/dashboard');
       toast({
         title: "Success",
         description: "Registration successful! Please log in.",

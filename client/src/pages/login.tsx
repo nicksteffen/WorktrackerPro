@@ -25,7 +25,7 @@ export default function Login() {
       
       if (!res.ok) throw new Error('Login failed');
       
-      setLocation('/');
+      setLocation('/dashboard');
       toast({
         title: "Success",
         description: "Logged in successfully",
