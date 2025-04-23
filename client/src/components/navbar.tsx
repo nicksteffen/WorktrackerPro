@@ -65,20 +65,24 @@ export default function Navbar() {
               <span className="ml-2 text-xl font-bold text-gray-900">WorkXP</span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <Link href="/" className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  location === "/" 
-                    ? "border-primary text-gray-900" 
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                }`}>
-                  Experiences
-              </Link>
-              <Link href="/columns" className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                  location === "/columns" 
-                    ? "border-primary text-gray-900" 
-                    : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-                }`}>
-                  Column Configuration
-              </Link>
+              {location !== "/" && (
+                <>
+                  <Link href="/dashboard" className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                      location === "/dashboard" 
+                        ? "border-primary text-gray-900" 
+                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    }`}>
+                      Experiences
+                  </Link>
+                  <Link href="/columns" className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                      location === "/columns" 
+                        ? "border-primary text-gray-900" 
+                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                    }`}>
+                      Column Configuration
+                  </Link>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-center">
