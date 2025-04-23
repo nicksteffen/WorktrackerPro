@@ -9,14 +9,20 @@ const SessionStore = MemoryStore(session);
 
 import { pool } from './db';
 
+import bcrypt from 'bcryptjs';
+
 passport.use(new LocalStrategy(async (username, password, done) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM users WHERE username = $1 AND password = $2',
-      [username, password]
+      'SELECT * FROM users WHERE username = $1',
+      [username]
     );
     const user = result.rows[0];
     if (!user) return done(null, false);
+    
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return done(null, false);
+    
     return done(null, user);
   } catch (err) {
     return done(err);
