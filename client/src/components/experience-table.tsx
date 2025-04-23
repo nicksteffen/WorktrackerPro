@@ -52,64 +52,64 @@ export default function ExperienceTable({
   isLoading 
 }: ExperienceTableProps) {
   const { deleteExperience } = useExperiences();
-  
+
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [isExperienceModalOpen, setIsExperienceModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [currentExperience, setCurrentExperience] = useState<Experience | null>(null);
   const itemsPerPage = 5;
-  
+
   // Filter experiences by search term
   const filteredExperiences = experiences.filter(exp => {
     if (!searchTerm) return true;
-    
+
     const term = searchTerm.toLowerCase();
-    
+
     // Search in custom fields
     const customFieldsMatch = Object.entries(exp.customFields || {}).some(([_, value]) => 
       value && typeof value === 'string' && value.toLowerCase().includes(term)
     );
-    
+
     // Search in tags
     const tagsMatch = exp.tags?.some(tag => 
       tag.name.toLowerCase().includes(term)
     );
-    
+
     return customFieldsMatch || tagsMatch;
   });
-  
+
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredExperiences.length / itemsPerPage));
   const paginatedExperiences = filteredExperiences.slice(
     (page - 1) * itemsPerPage, 
     page * itemsPerPage
   );
-  
+
   // Format date for display
   const formatDate = (dateStr: string | Date | null | undefined): string => {
     if (!dateStr) return "";
     return format(new Date(dateStr), "MMM yyyy");
   };
-  
+
   // Handle opening the edit modal
   const handleEdit = (experience: Experience) => {
     setCurrentExperience(experience);
     setIsExperienceModalOpen(true);
   };
-  
+
   // Handle opening the add modal
   const handleAdd = () => {
     setCurrentExperience(null);
     setIsExperienceModalOpen(true);
   };
-  
+
   // Handle opening the delete dialog
   const handleDeleteClick = (experience: Experience) => {
     setCurrentExperience(experience);
     setIsDeleteDialogOpen(true);
   };
-  
+
   // Execute delete
   const confirmDelete = () => {
     if (currentExperience) {
@@ -117,7 +117,7 @@ export default function ExperienceTable({
       setIsDeleteDialogOpen(false);
     }
   };
-  
+
   // Render cell content based on column type
   const renderCellContent = (experience: Experience, column: Column) => {
     const value = column.key === 'startDate' 
@@ -127,16 +127,16 @@ export default function ExperienceTable({
         : experience.customFields && typeof experience.customFields === 'object'
           ? (experience.customFields as Record<string, any>)[column.key]
           : undefined;
-    
+
     if (column.key === 'startDate' || column.key === 'endDate') {
       return formatDate(value as string | Date | null | undefined);
     }
-    
+
     // If this is a date column in custom fields
     if (column.type === 'date' && value) {
       return formatDate(value as string);
     }
-    
+
     // If this is a dropdown column with allowMultiple and the value is an array
     if (column.type === 'dropdown' && column.allowMultiple && Array.isArray(value)) {
       return (
@@ -155,7 +155,7 @@ export default function ExperienceTable({
         </div>
       );
     }
-    
+
     // For skills column with tags
     if (column.key === 'skills' && experience.tags && experience.tags.length > 0) {
       return (
@@ -174,17 +174,44 @@ export default function ExperienceTable({
         </div>
       );
     }
-    
+
     // Default for text content with truncation for long text
     if (column.type === 'long-text' && typeof value === 'string') {
       return <div className="max-w-xs truncate">{value}</div>;
     }
-    
+
     return value || "";
   };
-  
+
+  const exportToCsv = () => {
+    // Convert experiences to CSV format
+    const headers = columns.map(col => col.name).join(',') + '\n';
+    const rows = experiences.map(exp => {
+      return columns.map(col => {
+        if (col.key === 'startDate' || col.key === 'endDate') {
+          return exp[col.key] ? new Date(exp[col.key]).toLocaleDateString() : '';
+        }
+        const value = exp.customFields[col.key] || '';
+        return Array.isArray(value) ? `"${value.join(', ')}"` : `"${value}"`;
+      }).join(',');
+    }).join('\n');
+
+    const csv = headers + rows;
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'experiences.csv';
+    a.click();
+  };
+
   return (
-    <>
+    <div>
+      <div className="mb-4">
+        <Button variant="outline" onClick={exportToCsv}>
+          Export to CSV
+        </Button>
+      </div>
       <div className="bg-white shadow rounded-lg overflow-hidden">
         <div className="flex justify-between items-center px-4 py-5 sm:px-6 border-b border-gray-200">
           <h2 className="text-lg font-medium text-gray-900">Work Experiences</h2>
@@ -206,7 +233,7 @@ export default function ExperienceTable({
             </Button>
           </div>
         </div>
-        
+
         {/* Experience Table */}
         <div className="overflow-x-auto">
           <Table>
@@ -267,7 +294,7 @@ export default function ExperienceTable({
             </TableBody>
           </Table>
         </div>
-        
+
         {/* Pagination */}
         {!isLoading && filteredExperiences.length > 0 && (
           <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
@@ -289,7 +316,7 @@ export default function ExperienceTable({
                       className={page === 1 ? "pointer-events-none opacity-50" : ""}
                     />
                   </PaginationItem>
-                  
+
                   {/* Generate pagination links */}
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
                     // Logic for which page numbers to show
@@ -303,7 +330,7 @@ export default function ExperienceTable({
                     } else {
                       pageNum = page - 2 + i;
                     }
-                    
+
                     return (
                       <PaginationItem key={i}>
                         <PaginationLink 
@@ -315,7 +342,7 @@ export default function ExperienceTable({
                       </PaginationItem>
                     );
                   })}
-                  
+
                   <PaginationItem>
                     <PaginationNext 
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
@@ -328,7 +355,7 @@ export default function ExperienceTable({
           </div>
         )}
       </div>
-      
+
       {/* Experience Form Dialog */}
       <Dialog open={isExperienceModalOpen} onOpenChange={setIsExperienceModalOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -342,7 +369,7 @@ export default function ExperienceTable({
           />
         </DialogContent>
       </Dialog>
-      
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
@@ -361,6 +388,6 @@ export default function ExperienceTable({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
 }

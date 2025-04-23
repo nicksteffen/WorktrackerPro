@@ -222,10 +222,50 @@ export default function ColumnConfig() {
               ))}
             </div>
             
-            <div className="mt-6">
+            <div className="mt-6 flex gap-2">
               <Button onClick={handleAddColumn} disabled={isPending}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add New Column
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const config = JSON.stringify(columns);
+                  const blob = new Blob([config], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'column-config.json';
+                  a.click();
+                }}
+              >
+                Export Config
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = '.json';
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (file) {
+                      const text = await file.text();
+                      const config = JSON.parse(text);
+                      const res = await fetch('/api/columns/import', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(config)
+                      });
+                      if (res.ok) {
+                        window.location.reload();
+                      }
+                    }
+                  };
+                  input.click();
+                }}
+              >
+                Import Config
               </Button>
             </div>
           </CardContent>

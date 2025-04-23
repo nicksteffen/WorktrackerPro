@@ -56,7 +56,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/columns/:id", async (req: Request, res: Response) => {
+  app.post("/api/columns/import", async (req: Request, res: Response) => {
+  try {
+    const columns = req.body;
+    if (!Array.isArray(columns)) {
+      return res.status(400).json({ message: "Invalid column configuration" });
+    }
+    
+    // Delete existing columns
+    const existingColumns = await storage.getColumns();
+    for (const column of existingColumns) {
+      await storage.deleteColumn(column.id);
+    }
+    
+    // Import new columns
+    for (const column of columns) {
+      await storage.createColumn(column);
+    }
+    
+    res.status(200).json({ message: "Column configuration imported successfully" });
+  } catch (err) {
+    console.error("Error importing columns:", err);
+    res.status(500).json({ message: "Failed to import column configuration" });
+  }
+});
+
+app.delete("/api/columns/:id", async (req: Request, res: Response) => {
     try {
       const id = parseInt(req.params.id);
       const success = await storage.deleteColumn(id);
