@@ -75,6 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Experience routes
   app.get("/api/experiences", async (req: Request, res: Response) => {
     try {
+      // For simple queries, we'll continue to use URL parameters
       const { startDate, endDate, tagIds, searchTerm } = req.query;
       
       // If there are search parameters, use search method
@@ -94,6 +95,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error fetching experiences:", err);
       res.status(500).json({ message: "Failed to fetch experiences" });
+    }
+  });
+  
+  // Dedicated search endpoint that accepts a POST request for more complex filtering
+  app.post("/api/experiences/search", async (req: Request, res: Response) => {
+    try {
+      const { startDate, endDate, tagIds, searchTerm, dropdownFilters } = req.body;
+      
+      console.log("Searching with filters:", { 
+        startDate, 
+        endDate, 
+        tagIds, 
+        searchTerm,
+        dropdownFilters 
+      });
+      
+      const experiences = await storage.searchExperiences({
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        tagIds,
+        searchTerm,
+        dropdownFilters
+      });
+      
+      res.json(experiences);
+    } catch (err) {
+      console.error("Error searching experiences:", err);
+      res.status(500).json({ message: "Failed to search experiences" });
     }
   });
 

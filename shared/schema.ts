@@ -138,10 +138,10 @@ export const columnFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   key: z.string().min(1, { message: "Key is required" }),
   type: z.enum(["date", "short-text", "long-text", "dropdown"]),
-  dropdownOptions: z.array(z.string()).optional(),
-  allowMultiple: z.boolean().optional(),
+  dropdownOptions: z.array(z.string()).optional().nullable(),
+  allowMultiple: z.boolean().optional().nullable(),
   isVisible: z.boolean().default(true),
-  order: z.number().optional(),
+  order: z.number(),
 });
 
 export type ColumnFormData = z.infer<typeof columnFormSchema>;

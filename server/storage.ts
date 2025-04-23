@@ -673,7 +673,8 @@ export class DatabaseStorage implements IStorage {
         return Object.entries(params.dropdownFilters!).every(([columnKey, selectedValues]) => {
           if (!selectedValues || selectedValues.length === 0) return true;
           
-          const fieldValue = exp.customFields[columnKey];
+          const customFields = exp.customFields as Record<string, any>;
+          const fieldValue = customFields[columnKey];
           
           // If field value is an array (multi-select dropdown)
           if (Array.isArray(fieldValue)) {
@@ -694,7 +695,8 @@ export class DatabaseStorage implements IStorage {
       const searchTerm = params.searchTerm.toLowerCase();
       filteredExperiences = filteredExperiences.filter(exp => {
         // Search in custom fields
-        const customFieldsMatch = Object.entries(exp.customFields || {}).some(([_, value]) =>
+        const customFields = exp.customFields as Record<string, any>;
+        const customFieldsMatch = Object.entries(customFields || {}).some(([_, value]) =>
           value !== null &&
           value !== undefined &&
           String(value).toLowerCase().includes(searchTerm)

@@ -5,9 +5,19 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatISO } from "date-fns";
 import { useExperiences } from "@/hooks/use-experiences";
-import { Tag } from "@shared/schema";
+import { useColumns } from "@/hooks/use-columns";
+import { Tag, Column } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 
 interface FilterSidebarProps {
   onFilter: (filteredExperiences: any[]) => void;
@@ -15,25 +25,40 @@ interface FilterSidebarProps {
 
 export default function FilterSidebar({ onFilter }: FilterSidebarProps) {
   const { tags, filterExperiences } = useExperiences();
+  const { columns } = useColumns();
   const { toast } = useToast();
   
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<number[]>([]);
-  const [client, setClient] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isFiltering, setIsFiltering] = useState(false);
+  const [dropdownFilters, setDropdownFilters] = useState<Record<string, string[]>>({});
+
+  // Get dropdown columns
+  const dropdownColumns = columns.filter(col => 
+    col.type === "dropdown" && col.isVisible && col.dropdownOptions && col.dropdownOptions.length > 0
+  );
 
   // Apply filters
   const applyFilters = async () => {
     setIsFiltering(true);
     
     try {
+      // Filter out empty dropdown filters
+      const nonEmptyDropdownFilters: Record<string, string[]> = {};
+      Object.entries(dropdownFilters).forEach(([key, values]) => {
+        if (values.length > 0) {
+          nonEmptyDropdownFilters[key] = values;
+        }
+      });
+
       const filteredExperiences = await filterExperiences({
         startDate: startDate ? formatISO(new Date(startDate), { representation: 'date' }) : undefined,
         endDate: endDate ? formatISO(new Date(endDate), { representation: 'date' }) : undefined,
         tagIds: selectedTags.length > 0 ? selectedTags : undefined,
-        searchTerm: searchTerm || client || undefined,
+        searchTerm: searchTerm || undefined,
+        dropdownFilters: Object.keys(nonEmptyDropdownFilters).length > 0 ? nonEmptyDropdownFilters : undefined,
       });
       
       onFilter(filteredExperiences);
@@ -53,8 +78,8 @@ export default function FilterSidebar({ onFilter }: FilterSidebarProps) {
     setStartDate("");
     setEndDate("");
     setSelectedTags([]);
-    setClient("");
     setSearchTerm("");
+    setDropdownFilters({});
     
     // Reset to show all experiences
     filterExperiences({}).then(onFilter);
@@ -67,6 +92,40 @@ export default function FilterSidebar({ onFilter }: FilterSidebarProps) {
         ? prev.filter(id => id !== tagId) 
         : [...prev, tagId]
     );
+  };
+
+  // Handle dropdown filter selection
+  const handleDropdownFilter = (columnKey: string, value: string) => {
+    setDropdownFilters(prev => {
+      const current = prev[columnKey] || [];
+      
+      // If already selected, remove it
+      if (current.includes(value)) {
+        const updated = current.filter(v => v !== value);
+        return {
+          ...prev,
+          [columnKey]: updated
+        };
+      } 
+      // Add to selection
+      else {
+        return {
+          ...prev,
+          [columnKey]: [...current, value]
+        };
+      }
+    });
+  };
+
+  // Remove a dropdown filter value
+  const removeDropdownFilter = (columnKey: string, value: string) => {
+    setDropdownFilters(prev => {
+      const current = prev[columnKey] || [];
+      return {
+        ...prev,
+        [columnKey]: current.filter(v => v !== value)
+      };
+    });
   };
 
   return (
@@ -104,6 +163,51 @@ export default function FilterSidebar({ onFilter }: FilterSidebarProps) {
             </div>
           </div>
           
+          {/* Dropdown filters */}
+          {dropdownColumns.length > 0 && (
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Dropdown Filters</h4>
+              <div className="space-y-3">
+                {dropdownColumns.map((column) => (
+                  <div key={column.key} className="space-y-2">
+                    <Label className="text-xs text-gray-500">{column.name}</Label>
+                    <Select 
+                      onValueChange={(value) => handleDropdownFilter(column.key, value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Select ${column.name}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {column.dropdownOptions?.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    
+                    {/* Show selected values as badges */}
+                    {dropdownFilters[column.key] && dropdownFilters[column.key].length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {dropdownFilters[column.key].map(value => (
+                          <Badge key={value} className="flex items-center gap-1 px-2 py-1">
+                            {value}
+                            <button 
+                              onClick={() => removeDropdownFilter(column.key, value)}
+                              className="text-xs rounded-full hover:bg-gray-300/20 p-[2px]"
+                            >
+                              <X size={12} />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           {/* Tags Filter */}
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">Skills/Tags</h4>
@@ -126,7 +230,7 @@ export default function FilterSidebar({ onFilter }: FilterSidebarProps) {
             </div>
           </div>
           
-          {/* Client Filter */}
+          {/* Search */}
           <div>
             <h4 className="text-sm font-medium text-gray-700 mb-2">Search</h4>
             <Input
