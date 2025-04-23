@@ -636,11 +636,8 @@ export class DatabaseStorage implements IStorage {
     searchTerm?: string;
     dropdownFilters?: Record<string, string[]>;
   }): Promise<Experience[]> {
-    // We'll do this in two steps to avoid the type issues:
-    // 1. First, get all experiences
+    // Get all experiences with their tags
     const allExperiences = await this.getExperiences();
-    
-    // 2. Then, filter them in memory, which is simpler and avoids type issues with Drizzle
     let filteredExperiences = allExperiences;
     
     // Filter by start date
@@ -669,23 +666,25 @@ export class DatabaseStorage implements IStorage {
     // Filter by dropdown values
     if (params.dropdownFilters && Object.keys(params.dropdownFilters).length > 0) {
       filteredExperiences = filteredExperiences.filter(exp => {
-        // Check if experience matches all applied dropdown filters
         return Object.entries(params.dropdownFilters!).every(([columnKey, selectedValues]) => {
           if (!selectedValues || selectedValues.length === 0) return true;
           
-          const customFields = exp.customFields as Record<string, any>;
-          const fieldValue = customFields[columnKey];
+          const customFields = exp.customFields || {};
+          const fieldValue = customFields[columnKey.toLowerCase()];
           
-          // If field value is an array (multi-select dropdown)
+          if (!fieldValue) return false;
+          
+          // Handle array values (multi-select dropdowns)
           if (Array.isArray(fieldValue)) {
-            return fieldValue.some(value => selectedValues.includes(value));
-          } 
-          // If field value is a string (single-select dropdown)
-          else if (typeof fieldValue === 'string') {
-            return selectedValues.includes(fieldValue);
+            return selectedValues.some(selected => 
+              fieldValue.map(v => v.toLowerCase()).includes(selected.toLowerCase())
+            );
           }
           
-          return false;
+          // Handle single string values
+          return selectedValues.some(selected => 
+            fieldValue.toLowerCase() === selected.toLowerCase()
+          );
         });
       });
     }
@@ -694,15 +693,15 @@ export class DatabaseStorage implements IStorage {
     if (params.searchTerm) {
       const searchTerm = params.searchTerm.toLowerCase();
       filteredExperiences = filteredExperiences.filter(exp => {
-        // Search in custom fields
-        const customFields = exp.customFields as Record<string, any>;
-        const customFieldsMatch = Object.entries(customFields || {}).some(([_, value]) =>
-          value !== null &&
-          value !== undefined &&
-          String(value).toLowerCase().includes(searchTerm)
-        );
+        const customFields = exp.customFields || {};
+        const customFieldsMatch = Object.values(customFields).some(value => {
+          if (!value) return false;
+          if (Array.isArray(value)) {
+            return value.some(v => v.toLowerCase().includes(searchTerm));
+          }
+          return String(value).toLowerCase().includes(searchTerm);
+        });
         
-        // Search in tags
         const tagsMatch = exp.tags?.some(tag =>
           tag.name.toLowerCase().includes(searchTerm)
         );
