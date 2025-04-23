@@ -1,15 +1,52 @@
 import { Link, useLocation } from "wouter";
 import { Menu, UserCircle2 } from "lucide-react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
 function AuthButton() {
-  // Implement your authentication logic here.  This is a placeholder.
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!res.ok) throw new Error('Logout failed');
+      
+      setLocation('/');
+      toast({
+        title: "Success",
+        description: "Logged out successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
-    <button type="button" className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-      <span className="sr-only">Login/Logout</span>
-      <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
-        <UserCircle2 className="h-5 w-5" />
-      </div>
-    </button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+          <span className="sr-only">Open user menu</span>
+          <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
+            <UserCircle2 className="h-5 w-5" />
+          </div>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={handleLogout}>
+          Logout
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
