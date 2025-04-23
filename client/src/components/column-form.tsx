@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { columnFormSchema, Column } from "@shared/schema";
 import { generateColumnKey } from "@/lib/config";
+import { useColumns } from "@/hooks/use-columns";
 import {
   Form,
   FormControl,
@@ -32,9 +33,25 @@ interface ColumnFormProps {
 }
 
 export default function ColumnForm({ column, onSubmit, onCancel }: ColumnFormProps) {
+  const { columns } = useColumns();
   const [showDropdownOptions, setShowDropdownOptions] = useState(
     column?.type === "dropdown"
   );
+  
+  // Get the maximum order value for new columns
+  const [maxOrder, setMaxOrder] = useState<number>(column?.order || 0);
+  
+  // Calculate max order when component loads
+  useEffect(() => {
+    if (!column && columns.length > 0) {
+      // Find the highest order value
+      const highestOrder = Math.max(...columns.map(col => col.order));
+      setMaxOrder(highestOrder);
+      
+      // Update the form with the next order
+      form.setValue("order", highestOrder + 1);
+    }
+  }, [columns]);
   
   const form = useForm({
     resolver: zodResolver(columnFormSchema),
@@ -45,7 +62,7 @@ export default function ColumnForm({ column, onSubmit, onCancel }: ColumnFormPro
       dropdownOptions: column?.dropdownOptions || [],
       allowMultiple: column?.allowMultiple || false,
       isVisible: column?.isVisible ?? true,
-      order: column?.order || 0,
+      order: column ? column.order : maxOrder + 1, // Use next available order for new columns
     },
   });
   
