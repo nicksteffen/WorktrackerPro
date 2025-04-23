@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { auth, requireAuth } from './auth';
 import { storage } from "./storage";
 import { experienceSchema, columnFormSchema, insertTagSchema } from "@shared/schema";
 import { ZodError } from "zod";
@@ -7,6 +8,33 @@ import { fromZodError } from "zod-validation-error";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+
+  // Auth routes
+  app.get('/api/auth/session', async (req, res) => {
+    const session = await auth.getSession(req)
+    res.json(session || null)
+  })
+
+  app.get('/api/auth/signin/:provider', async (req, res) => {
+    const { provider } = req.params
+    const url = await auth.signIn(provider)
+    res.json({ url })
+  })
+
+  app.get('/api/auth/signout', async (req, res) => {
+    const url = await auth.signOut()
+    res.json({ url })
+  })
+
+  app.get('/api/auth/callback/:provider', async (req, res) => {
+    try {
+      const session = await auth.callback(req)
+      res.json(session)
+    } catch (error) {
+      console.error('Auth callback error:', error)
+      res.status(500).json({ error: 'Authentication failed' })
+    }
+  })
 
   // Error handler for Zod validation errors
   const handleValidationError = (err: unknown, res: Response) => {

@@ -1,6 +1,18 @@
 import { Link, useLocation } from "wouter";
 import { Menu, UserCircle2 } from "lucide-react";
 
+function AuthButton() {
+  // Implement your authentication logic here.  This is a placeholder.
+  return (
+    <button type="button" className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+      <span className="sr-only">Login/Logout</span>
+      <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
+        <UserCircle2 className="h-5 w-5" />
+      </div>
+    </button>
+  );
+}
+
 export default function Navbar() {
   const [location] = useLocation();
 
@@ -33,12 +45,7 @@ export default function Navbar() {
           <div className="flex items-center">
             <div className="ml-3 relative">
               <div>
-                <button type="button" className="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-                  <span className="sr-only">Open user menu</span>
-                  <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center">
-                    <UserCircle2 className="h-5 w-5" />
-                  </div>
-                </button>
+                <AuthButton />
               </div>
             </div>
           </div>
