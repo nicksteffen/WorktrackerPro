@@ -5,12 +5,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import Login from "@/pages/login";
 import Navbar from "@/components/navbar";
 import ColumnConfig from "@/pages/column-config";
 
 function Router() {
   return (
     <Switch>
+      <Route path="/login" component={Login}/>
       <Route path="/" component={Home}/>
       <Route path="/columns" component={ColumnConfig}/>
       <Route component={NotFound} />
